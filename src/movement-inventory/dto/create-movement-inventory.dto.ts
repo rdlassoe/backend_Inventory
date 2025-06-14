@@ -1,4 +1,6 @@
 import { IsNumber, IsNotEmpty, IsInt, IsString, IsOptional, NotEquals } from 'class-validator';
+import e from 'express';
+
 
 export class CreateMovementDto {
   @IsInt()
@@ -22,4 +24,4 @@ export class CreateMovementDto {
   @IsInt()
   @IsNotEmpty()
   readonly user_id: number;
-}
+} 

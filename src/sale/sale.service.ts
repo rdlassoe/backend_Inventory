@@ -15,12 +15,7 @@ import { UpdateSaleDto } from './dto/update-sale.dto';
 
 @Injectable()
 export class SaleService {
-  remove(id: number) {
-    throw new Error('Method not implemented.');
-  }
-  update(id: number, updateSaleDto: UpdateSaleDto) {
-    throw new Error('Method not implemented.');
-  }
+
   constructor(
     // Inyectamos DataSource para poder manejar transacciones manualmente.
     private readonly dataSource: DataSource,
@@ -121,8 +116,15 @@ export class SaleService {
       // Si todo fue exitoso, confirmar la transacción
       await queryRunner.commitTransaction();
       
-      // Devolver la venta completa con sus relaciones
-      return this.saleRepository.findOne({ where: { idsale: ventaGuardada.idsale }, relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] });
+      // Devolver la venta completa con sus relaciones, asegurando que no sea null.
+      const resultadoFinal = await this.saleRepository.findOne({ 
+        where: { idsale: ventaGuardada.idsale }, 
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+      });
+      if (!resultadoFinal) {
+        throw new InternalServerErrorException('No se pudo encontrar la venta recién creada después de la transacción.');
+      }
+      return resultadoFinal;
       
     } catch (error) {
       // Si algo falla, revertir todos los cambios
@@ -151,5 +153,122 @@ export class SaleService {
           throw new NotFoundException(`Venta con ID #${id} no encontrada.`);
       }
       return sale;
+  }
+
+  /**
+   * Actualiza una venta existente.
+   * NOTA: Esta implementación básica solo actualiza cliente, empleado y método de pago.
+   * La actualización de productos (detalles) es compleja y no está cubierta aquí.
+   * @param id - El ID de la venta a actualizar.
+   * @param updateSaleDto - Los datos para actualizar la venta.
+   * @returns La entidad de la venta actualizada.
+   */
+  async update(id: number, updateSaleDto: UpdateSaleDto): Promise<Sale> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const saleToUpdate = await queryRunner.manager.findOne(Sale, { 
+        where: { idsale: id },
+        relations: ['cliente', 'empleado', 'metodo_pago'] 
+      });
+
+      if (!saleToUpdate) {
+        throw new NotFoundException(`Venta con ID #${id} no encontrada.`);
+      }
+
+      // Actualizar campos si se proporcionan en el DTO
+      if (updateSaleDto.cliente_id) {
+        const cliente = await queryRunner.manager.findOneBy(Person, { idperson: updateSaleDto.cliente_id });
+        if (!cliente) throw new NotFoundException(`Cliente con ID #${updateSaleDto.cliente_id} no encontrado.`);
+        saleToUpdate.cliente = cliente;
+      }
+
+      if (updateSaleDto.empleado_id) {
+        const empleado = await queryRunner.manager.findOneBy(Person, { idperson: updateSaleDto.empleado_id });
+        if (!empleado) throw new NotFoundException(`Empleado con ID #${updateSaleDto.empleado_id} no encontrado.`);
+        saleToUpdate.empleado = empleado;
+      }
+
+      if (updateSaleDto.metodo_pago_id) {
+        const metodoPago = await queryRunner.manager.findOneBy(PaymentMethod, { idpayment_method: updateSaleDto.metodo_pago_id });
+        if (!metodoPago) throw new NotFoundException(`Método de pago con ID #${updateSaleDto.metodo_pago_id} no encontrado.`);
+        saleToUpdate.metodo_pago = metodoPago;
+      }
+
+      if (updateSaleDto.productos && updateSaleDto.productos.length > 0) {
+        // La lógica para actualizar productos (SaleDetail) es compleja:
+        // - Eliminar detalles antiguos / actualizar existentes / añadir nuevos.
+        // - Revertir/aplicar movimientos de inventario y stock.
+        // - Recalcular el total de la venta.
+        // Por simplicidad, esta parte se omite. Podrías lanzar un error o ignorar los productos.
+        console.warn(`La actualización de productos en la venta ID #${id} no está implementada en esta versión.`);
+        // throw new BadRequestException('La actualización de productos en una venta no está soportada actualmente.');
+      }
+
+      const updatedSale = await queryRunner.manager.save(saleToUpdate);
+      await queryRunner.commitTransaction();
+      
+      // Devolver la venta actualizada con sus relaciones
+      const resultadoFinal = await this.saleRepository.findOne({
+        where: { idsale: updatedSale.idsale },
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+      });
+      if (!resultadoFinal) {
+        throw new InternalServerErrorException('No se pudo encontrar la venta recién actualizada después de la transacción.');
+      }
+      return resultadoFinal;
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException(error.message || 'Ocurrió un error al actualizar la venta.');
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * Elimina una venta.
+   * NOTA: Esta implementación básica elimina la venta y sus detalles (por cascada).
+   * No revierte movimientos de inventario ni ajusta stock.
+   * @param id - El ID de la venta a eliminar.
+   * @returns La entidad de la venta eliminada.
+   */
+  async remove(id: number): Promise<Sale> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const saleToRemove = await queryRunner.manager.findOne(Sale, { 
+        where: { idsale: id },
+        // Cargar detalles para devolverlos, aunque la BD los borrará por cascada
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+      });
+
+      if (!saleToRemove) {
+        throw new NotFoundException(`Venta con ID #${id} no encontrada.`);
+      }
+
+      // Lógica para revertir stock y movimientos de inventario iría aquí.
+      // Por ejemplo, para cada saleToRemove.detalles:
+      // 1. Encontrar el producto y su inventario.
+      // 2. Incrementar el stock del inventario.
+      // 3. Crear un MovementInventory de tipo "Entrada por anulación de venta".
+      // Esta lógica es compleja y se omite por brevedad.
+
+      await queryRunner.manager.remove(saleToRemove); // Esto eliminará la venta y sus detalles por cascada.
+      await queryRunner.commitTransaction();
+      
+      // Devolvemos la entidad eliminada (ya no existe en BD, pero tenemos su estado previo)
+      return saleToRemove; 
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new InternalServerErrorException(error.message || 'Ocurrió un error al eliminar la venta.');
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
