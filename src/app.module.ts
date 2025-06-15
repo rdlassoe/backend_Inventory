@@ -17,6 +17,7 @@ import { SaleModule } from './sale/sale.module';
 //import { AuthModule } from './auth/auth.module';
 import { TipoIdentificacionModule } from './tipo-identificacion/tipo-identificacion.module';
 import { TypePersonModule } from './type-person/type-person.module';
+import { AuthModule } from './auth/auth.module';
 
 
 
@@ -58,9 +59,9 @@ import { TypePersonModule } from './type-person/type-person.module';
     MovementInventoryModule,
     PaymentMethodModule,
     SaleModule,
-    //AuthModule,
     TipoIdentificacionModule,
     TypePersonModule,
+    AuthModule,
     
   ],
   controllers: [AppController],
