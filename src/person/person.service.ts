@@ -68,13 +68,10 @@ export class PersonService {
    * @param updatePersonDto - Los datos a actualizar.
    * @returns La entidad de la persona actualizada.
    */
-  async update(id: number, updatePersonDto: UpdatePersonDto): Promise<Person> {
-    // 'preload' busca la entidad por ID y la fusiona con los nuevos datos del DTO.
-    // Si el ID no existe, devuelve undefined.
+   async update(id: number, updatePersonDto: UpdatePersonDto): Promise<Person> {
     const person = await this.personRepository.preload({
         idperson: id,
         ...updatePersonDto,
-        // Si se actualiza el tipo de ID o persona, lo mapeamos a la relación.
         ...(updatePersonDto.tipo_id && { tipo_id: { idtipo_identificacion: updatePersonDto.tipo_id } as any }),
         ...(updatePersonDto.tipo_personaid && { tipo_personaid: { idtype_person: updatePersonDto.tipo_personaid } as any }),
     });
@@ -84,9 +81,9 @@ export class PersonService {
     }
 
     try {
-        // Guardamos los cambios en la base de datos.
         return await this.personRepository.save(person);
     } catch (error) {
+        // Este manejo de error es genérico.
         throw new InternalServerErrorException('Error al actualizar la persona.');
     }
   }

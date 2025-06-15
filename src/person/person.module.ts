@@ -9,7 +9,6 @@ import { TypePerson } from '../type-person/entities/type-person.entity'; // Impo
 @Module({
   // Importamos TypeOrmModule.forFeature para registrar las entidades que este
   // módulo utilizará. Esto hace que sus repositorios estén disponibles
-  // para la inyección de dependencias en el PersonService.
   imports: [TypeOrmModule.forFeature([Person, TipoIdentificacion, TypePerson])],
   
   // Declaramos el controlador que pertenece a este módulo.

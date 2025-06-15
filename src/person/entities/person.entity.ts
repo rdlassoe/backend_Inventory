@@ -6,10 +6,9 @@ import {
   JoinColumn,
   OneToOne,
 } from 'typeorm';
-import { TipoIdentificacion } from '../../tipo-identificacion/entities/tipo-identificacion.entity'; // Suponiendo que crearás esta entidad
-import { TypePerson } from '../../type-person/entities/type-person.entity'; // Suponiendo que crearás esta entidad
-// TODO: Update the import path below if 'user.entity.ts' is located elsewhere
-import { User } from '../../user/entities/user.entity'; // Ajusta la ruta según la ubicación real del archivo
+import { TipoIdentificacion } from '../../tipo-identificacion/entities/tipo-identificacion.entity'; 
+import { TypePerson } from '../../type-person/entities/type-person.entity'; 
+import { User } from '../../user/entities/user.entity'; 
 
 @Entity('person')
 export class Person {
