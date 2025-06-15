@@ -2,21 +2,43 @@ import { Injectable, NotFoundException, InternalServerErrorException, ConflictEx
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { Person } from '../person/entities/person.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
-import { Person } from '../person/entities/person.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    // Si tienes otras inyecciones, déjalas como están
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
   ) {}
 
-  // ... create, findAll, findOne (como en la respuesta anterior) ...
+  // ... (El resto de tus métodos: create, findAll, findOne, update, remove) ...
+  // Pega esta sección debajo de tus otros métodos dentro de la clase UserService
+
+  /**
+   * Busca un usuario por su nombre de usuario.
+   * ¡Importante! Selecciona explícitamente la contraseña, que por defecto está oculta.
+   * @param username - El nombre de usuario a buscar.
+   * @returns La entidad del usuario, incluyendo la contraseña, o undefined si no se encuentra.
+   */
+  async findByUsername(username: string): Promise<User | undefined> {
+    // Usamos 'findOne' con una consulta más compleja para asegurar que se seleccione la contraseña.
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password') // Selecciona la columna 'password' que está oculta por defecto.
+      .where('user.username = :username', { username })
+      .getOne(); // getOne() devuelve la entidad o null.
+
+    return user ?? undefined;
+  }
+  
+  // -- Aquí irían tus otros métodos como create, findAll, etc. --
+  // Por ejemplo:
   async create(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
     const person = await this.personRepository.findOneBy({ idperson: createUserDto.persona_id });
     if (!person) throw new NotFoundException(`La persona con ID #${createUserDto.persona_id} no fue encontrada.`);
