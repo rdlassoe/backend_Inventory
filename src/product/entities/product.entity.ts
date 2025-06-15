@@ -5,7 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-// Update the import path if the Category entity is located elsewhere
+
 import { Category } from '../../category/entities/category.entity';
 
 @Entity('product')

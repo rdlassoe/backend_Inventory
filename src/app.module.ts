@@ -44,7 +44,7 @@ import { TypePersonModule } from './type-person/type-person.module';
 
         // Sincroniza el esquema de la BD con las entidades.
         // ¡ADVERTENCIA! Usar solo en desarrollo. En producción, puede borrar datos.
-        synchronize: true, 
+        synchronize: false, 
       }),
     }),
     

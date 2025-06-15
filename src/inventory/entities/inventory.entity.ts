@@ -5,9 +5,9 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-// Update the import path if the location is different, for example:
+
 import { Product } from '../../product/entities/product.entity';
-// Or ensure that '../product/entities/product.entity.ts' exists and is correctly named.
+
 
 @Entity('inventory')
 export class Inventory {
