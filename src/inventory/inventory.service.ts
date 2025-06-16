@@ -17,6 +17,10 @@ import { UpdateInventoryDto } from './dto/update-inventory.dto';
  */
 @Injectable()
 export class InventoryService {
+  remove(id: number) {
+    throw new Error('Method not implemented.');
+  }
+ 
   /**
    * El constructor inyecta las dependencias de los repositorios de TypeORM
    * para las entidades Inventory y Product.
@@ -121,5 +125,21 @@ export class InventoryService {
     inventoryItem.fecha_actualizacion = new Date();
 
     return this.inventoryRepository.save(inventoryItem);
+  }
+  /**
+   * Elimina el registro de inventario de un producto específico por el ID del PRODUCTO.
+   * @param productId - El ID del producto cuyo inventario se eliminará.
+   * @returns El registro de inventario que fue eliminado (o void si prefieres no devolver nada).
+   */
+  async removeByProductId(productId: number): Promise<Inventory> {
+    // Reutilizamos findOneByProductId para buscar y manejar el caso de no encontrado.
+    const inventoryItemToRemove = await this.findOneByProductId(productId);
+
+    // Si findOneByProductId no lo encuentra, ya habrá lanzado un NotFoundException.
+    // Usamos 'remove' del repositorio para eliminar la entidad.
+    await this.inventoryRepository.remove(inventoryItemToRemove);
+
+    // Devolvemos el objeto eliminado como confirmación.
+    return inventoryItemToRemove;
   }
 }
