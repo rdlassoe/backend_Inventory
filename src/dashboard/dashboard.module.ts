@@ -9,8 +9,9 @@ import { Inventory } from '../inventory/entities/inventory.entity';
 import { Sale } from '../sale/entities/sale.entity';
 import { SaleDetail } from '../sale/entities/sale-detail.entity';
 import { MovementInventory } from '../movement-inventory/entities/movement-inventory.entity';
-import { User } from '../user/entities/user.entity'; // <-- Añadido
-import { TypeMovement } from '../type-movement/entities/type-movement.entity'; // <-- Añadido
+import { User } from '../user/entities/user.entity';
+import { TypeMovement } from '../type-movement/entities/type-movement.entity';
+import { Person } from '../person/entities/person.entity'; // <-- Añadido para la relación con Cliente en Sale
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { TypeMovement } from '../type-movement/entities/type-movement.entity'; /
       SaleDetail, 
       MovementInventory,
       User,
-      TypeMovement
+      TypeMovement,
+      Person // <-- Añadido
     ]),
   ],
   controllers: [DashboardController],

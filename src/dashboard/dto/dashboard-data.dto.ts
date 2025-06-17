@@ -1,4 +1,4 @@
-// Define la estructura de un producto con bajo stock para la respuesta.
+// Estructura para un producto con bajo stock
 class LowStockProductDto {
   id: number;
   nombre: string;
@@ -6,7 +6,7 @@ class LowStockProductDto {
   cantMinima: number;
 }
 
-// Define la estructura de un movimiento reciente para la respuesta.
+// Estructura para un movimiento reciente
 class RecentMovementDto {
   fecha: Date;
   producto: string;
@@ -15,19 +15,41 @@ class RecentMovementDto {
   usuario: string;
 }
 
-// DTO principal actualizado con toda la información del dashboard.
+// NUEVA: Estructura para una venta reciente
+class RecentSaleDto {
+  idsale: number;
+  fecha_hora: Date;
+  cliente: string;
+  total: number;
+}
+
+// NUEVA: Estructura para un producto top
+class TopProductDto {
+  nombre: string;
+  totalVendido: number;
+}
+// NUEVA: Define la estructura de un producto sin stock.
+class ZeroStockProductDto {
+  id: number;
+  nombre: string;
+  cantidad: 0;
+}
+// DTO principal actualizado
 export class DashboardDataDto {
   // --- Métricas existentes ---
-  totalProducts: number;
-  totalInventoryValue: number;
-  salesToday: number;
-  salesThisWeek: number;
-  salesThisMonth: number;
-  grossProfitThisMonth: number;
-  netProfitNote: string;
-  
-  // --- Nuevas Métricas y Alertas ---
-  lowStockProducts: LowStockProductDto[];
-  recentMovements: RecentMovementDto[];
-  zeroStockProductCount: number; // Será > 0 si hay productos en cero.
+  totalProductos: number;
+  totalInventorio: number;
+  ventasDia: number;
+  ventasSemana: number;
+  ventasMes: number;
+  gananciaBruta: number;
+  //netProfitNote: string;
+  productoBajoStock: LowStockProductDto[];
+  movimientosRecientes: RecentMovementDto[];
+  ceroStockProducto: ZeroStockProductDto[];
+
+  // --- NUEVAS FUNCIONES ---
+  ventasRecientes: RecentSaleDto[];
+  productosMasVendidos: TopProductDto[];
+  //reportsNote: string;
 }
