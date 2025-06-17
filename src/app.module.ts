@@ -18,6 +18,7 @@ import { SaleModule } from './sale/sale.module';
 import { TipoIdentificacionModule } from './tipo-identificacion/tipo-identificacion.module';
 import { TypePersonModule } from './type-person/type-person.module';
 import { AuthModule } from './auth/auth.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 
 
@@ -62,6 +63,7 @@ import { AuthModule } from './auth/auth.module';
     TipoIdentificacionModule,
     TypePersonModule,
     AuthModule,
+    DashboardModule,
     
   ],
   controllers: [AppController],
