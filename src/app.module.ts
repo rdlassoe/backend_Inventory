@@ -19,6 +19,7 @@ import { TipoIdentificacionModule } from './tipo-identificacion/tipo-identificac
 import { TypePersonModule } from './type-person/type-person.module';
 import { AuthModule } from './auth/auth.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ReportsModule } from './reports/reports.module';
 
 
 
@@ -64,6 +65,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     TypePersonModule,
     AuthModule,
     DashboardModule,
+    ReportsModule,
     
   ],
   controllers: [AppController],
