@@ -1,23 +1,30 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Sale } from '../sale/entities/sale.entity';
 import { SaleDetail } from '../sale/entities/sale-detail.entity';
 import { Inventory } from '../inventory/entities/inventory.entity';
+import { Product } from '../product/entities/product.entity';
+import { MovementInventory } from '../movement-inventory/entities/movement-inventory.entity';
 import { ComparisonQueryDto } from './dto/comparison-query.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
-
 
 @Injectable()
 export class ReportsService {
   constructor(
-    @InjectRepository(Sale)
+   @InjectRepository(Sale)
     private readonly saleRepository: Repository<Sale>,
     @InjectRepository(SaleDetail)
     private readonly saleDetailRepository: Repository<SaleDetail>,
     @InjectRepository(Inventory)
     private readonly inventoryRepository: Repository<Inventory>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
+    @InjectRepository(MovementInventory)
+    private readonly movementRepository: Repository<MovementInventory>, // Esta dependencia causaba el error
   ) {}
+
+
 
   /**
    * 1. Reporte de Ventas por Periodo (Día, Semana, Mes, Año)
@@ -156,6 +163,134 @@ export class ReportsService {
       }
     };
   }
+ // ==================================================
+  // ---         REPORTES DE INVENTARIO           ---
+  // ==================================================
 
-  // ... (Aquí irían los otros reportes de inventario y los métodos de exportación)
+  /**
+   * 1. Productos Bajo Stock Mínimo
+   */
+  async getProductsWithLowStock() {
+    return this.inventoryRepository.createQueryBuilder('inventory')
+      .innerJoinAndSelect('inventory.producto_id', 'product')
+      .where('inventory.cantidad <= product.cantMinima')
+      .orderBy('inventory.cantidad', 'ASC')
+      .getMany();
+  }
+
+  /**
+   * 2. Inventario Valorizado
+   */
+  async getValorizedInventory() {
+    const result = await this.inventoryRepository.createQueryBuilder('inventory')
+      .select('SUM(inventory.cantidad * product.costo)', 'totalCosto')
+      .addSelect('SUM(inventory.cantidad * product.precio)', 'totalPrecioVenta')
+      .innerJoin('inventory.producto_id', 'product')
+      .getRawOne();
+      
+    return {
+      valorTotalInventarioACosto: parseFloat(result.totalCosto) || 0,
+      valorPotencialVenta: parseFloat(result.totalPrecioVenta) || 0
+    };
+  }
+
+  /**
+   * 3. Historial de Movimientos de Inventario
+   */
+   async getInventoryMovements(query: ReportQueryDto) {
+    const qb = this.movementRepository.createQueryBuilder('movement')
+      // Unimos las tablas relacionadas para poder acceder a sus datos
+      .innerJoin('movement.inventario_id', 'inventory')
+      .innerJoin('inventory.producto_id', 'product')
+      .innerJoin('movement.movement_type_id', 'type')
+      .innerJoin('movement.user_id', 'user')
+      .innerJoin('user.persona_id', 'person')
+      // Seleccionamos explícitamente los campos que queremos mostrar para un reporte limpio
+      .select([
+        'movement.idmovement_inventory AS id',
+        'movement.fecha AS fecha',
+        'movement.descripcion AS descripcion',
+        'product.nombre AS producto',
+        'movement.cantidad AS cantidad',
+        'type.description AS tipoDeMovimiento',
+        'CONCAT(person.nombre, " ", person.apellido) AS usuario'
+      ])
+      .orderBy('movement.fecha', 'DESC');
+
+    if (query.startDate && query.endDate) {
+      qb.where('movement.fecha BETWEEN :startDate AND :endDate', { 
+        startDate: query.startDate, 
+        endDate: query.endDate 
+      });
+    }
+
+    return qb.getRawMany(); // getRawMany devuelve un resultado plano y limpio
+  }
+
+  /**
+   * Reporte de Kardex de un Producto (Corregido)
+   * Muestra el historial de movimientos y el cálculo de existencias para un solo producto.
+   */
+  async getProductKardex(productId: number, query: ReportQueryDto) {
+    const product = await this.productRepository.findOneBy({ idproduct: productId });
+    if (!product) {
+      throw new NotFoundException(`Producto con ID #${productId} no encontrado.`);
+    }
+
+    // --- CORRECCIÓN CLAVE ---
+    // La consulta ahora une explícitamente el producto y filtra por su ID.
+    const baseQuery = this.movementRepository.createQueryBuilder('movement')
+      .innerJoin('movement.inventario_id', 'inventory')
+      .innerJoin('inventory.producto_id', 'product')
+      .where('product.idproduct = :productId', { productId });
+
+    // Clonamos la consulta base para los diferentes cálculos
+    const movementsQuery = baseQuery.clone()
+      .select(['movement.fecha', 'movement.descripcion', 'movement.cantidad'])
+      .orderBy('movement.fecha', 'ASC')
+      .addOrderBy('movement.idmovement_inventory', 'ASC');
+
+    if (query.startDate && query.endDate) {
+      movementsQuery.andWhere('movement.fecha BETWEEN :startDate AND :endDate', {
+        startDate: query.startDate,
+        endDate: query.endDate,
+      });
+    }
+    
+    const movements = await movementsQuery.getRawMany();
+
+    // Calcular el stock inicial (total de movimientos antes de la fecha de inicio del reporte)
+    let stockInicial = 0;
+    if (query.startDate) {
+        const initialStockQuery = baseQuery.clone()
+            .andWhere('movement.fecha < :startDate', { startDate: query.startDate })
+            .select('SUM(movement.cantidad)', 'total');
+            
+        const initialStockResult = await initialStockQuery.getRawOne();
+        stockInicial = parseFloat(initialStockResult.total) || 0;
+    }
+
+    // Calcular las existencias después de cada movimiento
+    let existencias = stockInicial;
+    const kardexMovimientos = movements.map(mov => {
+        existencias += mov.cantidad;
+        return {
+            fecha: mov.fecha,
+            descripcion: mov.descripcion,
+            entrada: mov.cantidad > 0 ? mov.cantidad : 0,
+            salida: mov.cantidad < 0 ? Math.abs(mov.cantidad) : 0,
+            existencias: existencias,
+        };
+    });
+
+    return {
+        producto: {
+          id: product.idproduct,
+          nombre: product.nombre,
+          codigo: product.codigo
+        },
+        stockInicial,
+        movimientos: kardexMovimientos
+    };
+  }
 }

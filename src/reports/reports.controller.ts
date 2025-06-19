@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Res, ParseIntPipe, Param } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto, } from './dto/report-query.dto';
 import { ComparisonQueryDto } from './dto/comparison-query.dto';
@@ -37,5 +37,27 @@ export class ReportsController {
     return this.reportsService.getSalesComparison(query);
   }
 
-  // ... (Tus otros endpoints de reportes de inventario y exportación)
+    @Get('inventory/low-stock')
+  getProductsWithLowStock() {
+    return this.reportsService.getProductsWithLowStock();
+  }
+  
+  @Get('inventory/valorized')
+  getValorizedInventory() {
+    return this.reportsService.getValorizedInventory();
+  }
+
+  @Get('inventory/movements')
+  getInventoryMovements(@Query() query: ReportQueryDto) {
+    return this.reportsService.getInventoryMovements(query);
+  }
+
+  @Get('inventory/kardex/:productId')
+  getProductKardex(
+    @Param('productId', ParseIntPipe) productId: number,
+    @Query() query: ReportQueryDto
+  ) {
+    return this.reportsService.getProductKardex(productId, query);
+  }
 }
+
