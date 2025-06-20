@@ -5,11 +5,16 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('product')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
+  }
+  
+  @Get('buscar/:termino')
+  buscarProducto(@Param('termino') termino: string) {
+    return this.productService.buscarPorCodigoONombre(termino);
   }
 
   @Get()
@@ -21,6 +26,7 @@ export class ProductController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productService.findOne(id);
   }
+  
 
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() updateProductDto: UpdateProductDto) {
@@ -31,4 +37,7 @@ export class ProductController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.productService.remove(id);
   }
+
+
+
 }

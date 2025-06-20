@@ -20,7 +20,7 @@ export class InventoryService {
   remove(id: number) {
     throw new Error('Method not implemented.');
   }
- 
+
   /**
    * El constructor inyecta las dependencias de los repositorios de TypeORM
    * para las entidades Inventory y Product.
@@ -33,7 +33,7 @@ export class InventoryService {
     // Se inyecta el repositorio de Product para validar la existencia de un producto.
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-  ) {}
+  ) { }
 
   /**
    * Crea un nuevo registro de inventario para un producto.
@@ -114,18 +114,23 @@ export class InventoryService {
    * @param updateInventoryDto - Los datos para actualizar la cantidad.
    * @returns El registro de inventario actualizado.
    */
-  async updateByProductId(
-    productId: number,
-    updateInventoryDto: UpdateInventoryDto,
-  ): Promise<Inventory> {
-    // Reutilizamos findOneByProductId para buscar y manejar el caso de no encontrado.
-    const inventoryItem = await this.findOneByProductId(productId);
+  async updateByProductCode(codigo: string, updateInventoryDto: UpdateInventoryDto) {
+    const inventario = await this.inventoryRepository.findOne({
+      where: {
+        producto_id: { codigo }, // accede a la relación
+      },
+      relations: ['producto_id'], // importante para poder filtrar por el campo "codigo"
+    });
 
-    inventoryItem.cantidad = updateInventoryDto.cantidad;
-    inventoryItem.fecha_actualizacion = new Date();
+    if (!inventario) {
+      throw new NotFoundException(`No se encontró inventario para el producto con código: ${codigo}`);
+    }
 
-    return this.inventoryRepository.save(inventoryItem);
+    Object.assign(inventario, updateInventoryDto);
+
+    return this.inventoryRepository.save(inventario);
   }
+
   /**
    * Elimina el registro de inventario de un producto específico por el ID del PRODUCTO.
    * @param productId - El ID del producto cuyo inventario se eliminará.

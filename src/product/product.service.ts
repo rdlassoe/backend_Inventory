@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, InternalServerErrorException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { Category } from '../category/entities/category.entity';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -75,7 +75,7 @@ export class ProductService {
     try {
       return await this.productRepository.save(product);
     } catch (error) {
-       if (error.code === 'ER_DUP_ENTRY') {
+        if (error.code === 'ER_DUP_ENTRY') {
         throw new ConflictException('Ya existe un producto con ese código.');
       }
       throw new InternalServerErrorException('Error al actualizar el producto.');
@@ -87,4 +87,14 @@ export class ProductService {
     await this.productRepository.remove(productToRemove);
     return productToRemove;
   }
+  async buscarPorCodigoONombre(termino: string): Promise<Product[]> {
+  return this.productRepository.find({
+    where: [
+      { codigo: ILike(`%${termino}%`) },
+      { nombre: ILike(`%${termino}%`) },
+    ],
+    take: 10,
+  });
+}
+
 }

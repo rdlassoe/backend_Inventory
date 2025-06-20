@@ -10,7 +10,7 @@ export class PersonService {
   constructor(
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-  ) {}
+  ) { }
 
   /**
    * Crea un nuevo registro de persona en la base de datos.
@@ -22,15 +22,15 @@ export class PersonService {
       // Creamos una nueva instancia de la entidad Persona con los datos del DTO.
       // TypeORM se encarga de mapear los IDs a las relaciones correspondientes.
       const newPerson = this.personRepository.create({
-          ...createPersonDto,
-          tipo_id: { idtipo_identificacion: createPersonDto.tipo_id } as any,
-          tipo_personaid: { idtype_person: createPersonDto.tipo_personaid } as any,
+        ...createPersonDto,
+        tipo_id: { idtipo_identificacion: createPersonDto.tipo_id } as any,
+        tipo_personaid: { idtype_person: createPersonDto.tipo_personaid } as any,
       });
       // Guardamos la nueva persona en la base de datos.
       return await this.personRepository.save(newPerson);
     } catch (error) {
-        // Manejo de errores (por ejemplo, una identificación duplicada)
-        throw new InternalServerErrorException('Error al crear la persona. Verifique los datos e intente de nuevo.');
+      // Manejo de errores (por ejemplo, una identificación duplicada)
+      throw new InternalServerErrorException('Error al crear la persona. Verifique los datos e intente de nuevo.');
     }
   }
 
@@ -40,8 +40,8 @@ export class PersonService {
    */
   async findAll(): Promise<Person[]> {
     return this.personRepository.find({
-        // Cargamos las relaciones para que se muestren en la respuesta.
-        relations: ['tipo_id', 'tipo_personaid'] 
+      // Cargamos las relaciones para que se muestren en la respuesta.
+      relations: ['tipo_id', 'tipo_personaid']
     });
   }
 
@@ -51,9 +51,9 @@ export class PersonService {
    * @returns La entidad de la persona encontrada.
    */
   async findOne(id: number): Promise<Person> {
-    const person = await this.personRepository.findOne({ 
-        where: { idperson: id },
-        relations: ['tipo_id', 'tipo_personaid']
+    const person = await this.personRepository.findOne({
+      where: { idperson: id },
+      relations: ['tipo_id', 'tipo_personaid']
     });
     // Si la persona no se encuentra, lanzamos una excepción.
     if (!person) {
@@ -68,12 +68,12 @@ export class PersonService {
    * @param updatePersonDto - Los datos a actualizar.
    * @returns La entidad de la persona actualizada.
    */
-   async update(id: number, updatePersonDto: UpdatePersonDto): Promise<Person> {
+  async update(id: number, updatePersonDto: UpdatePersonDto): Promise<Person> {
     const person = await this.personRepository.preload({
-        idperson: id,
-        ...updatePersonDto,
-        ...(updatePersonDto.tipo_id && { tipo_id: { idtipo_identificacion: updatePersonDto.tipo_id } as any }),
-        ...(updatePersonDto.tipo_personaid && { tipo_personaid: { idtype_person: updatePersonDto.tipo_personaid } as any }),
+      idperson: id,
+      ...updatePersonDto,
+      ...(updatePersonDto.tipo_id && { tipo_id: { idtipo_identificacion: updatePersonDto.tipo_id } as any }),
+      ...(updatePersonDto.tipo_personaid && { tipo_personaid: { idtype_person: updatePersonDto.tipo_personaid } as any }),
     });
 
     if (!person) {
@@ -81,10 +81,10 @@ export class PersonService {
     }
 
     try {
-        return await this.personRepository.save(person);
+      return await this.personRepository.save(person);
     } catch (error) {
-        // Este manejo de error es genérico.
-        throw new InternalServerErrorException('Error al actualizar la persona.');
+      // Este manejo de error es genérico.
+      throw new InternalServerErrorException('Error al actualizar la persona.');
     }
   }
 
@@ -96,11 +96,11 @@ export class PersonService {
   async remove(id: number): Promise<Person> {
     // Primero, buscamos la persona para asegurarnos de que existe.
     const personToRemove = await this.findOne(id);
-    
+
     // Si findOne no la encuentra, ya habrá lanzado un NotFoundException.
     // Usamos 'remove' para eliminar la entidad.
     await this.personRepository.remove(personToRemove);
-    
+
     // Devolvemos el objeto eliminado como confirmación.
     return personToRemove;
   }
