@@ -1,4 +1,4 @@
-import { IsNumber, IsNotEmpty, Min } from 'class-validator';
+import { IsNumber, IsNotEmpty, Min, isDate } from 'class-validator';
 
 export class UpdateInventoryDto {
   @IsNumber()

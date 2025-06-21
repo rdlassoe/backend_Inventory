@@ -4,6 +4,7 @@ import {
   Column,
   OneToOne,
   JoinColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 import { Product } from '../../product/entities/product.entity';
@@ -17,7 +18,7 @@ export class Inventory {
   @Column({ type: 'int', nullable: false, default: 0 })
   cantidad: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @UpdateDateColumn({ type: 'datetime', nullable: true })
   fecha_actualizacion: Date;
 
   // --- Relaciones ---
