@@ -5,6 +5,7 @@ import { ComparisonQueryDto } from './dto/comparison-query.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import type { Response } from 'express';
 
 //@UseGuards(JwtAuthGuard, RolesGuard)
 //@Roles('admin') // Solo los administradores pueden acceder a los reportes
@@ -58,6 +59,20 @@ export class ReportsController {
     @Query() query: ReportQueryDto
   ) {
     return this.reportsService.getProductKardex(productId, query);
+  }
+
+  // --- NUEVO ENDPOINT PARA EL REPORTE GENERAL ---
+  @Get('comprehensive-pdf')
+  async getComprehensivePdfReport(@Query() query: ReportQueryDto, @Res() res: Response) {
+      const pdfBuffer = await this.reportsService.generateComprehensivePdf(query);
+
+      res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'attachment; filename=reporte_general.pdf',
+          'Content-Length': pdfBuffer.length,
+      });
+
+      res.end(pdfBuffer);
   }
 }
 
