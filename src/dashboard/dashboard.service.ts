@@ -110,7 +110,7 @@ export class DashboardService {
       .createQueryBuilder('inventory')
       .innerJoin('inventory.producto_id', 'product')
       .select([
-        'product.idproduct as id',
+        'product.codigo as id',
         'product.nombre as nombre',
         'inventory.cantidad as cantidad',
         'product.cantMinima as "cantMinima"',
