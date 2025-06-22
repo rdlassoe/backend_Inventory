@@ -12,7 +12,7 @@ import { ReportQueryDto } from './dto/report-query.dto';
 @Injectable()
 export class ReportsService {
   constructor(
-   @InjectRepository(Sale)
+    @InjectRepository(Sale)
     private readonly saleRepository: Repository<Sale>,
     @InjectRepository(SaleDetail)
     private readonly saleDetailRepository: Repository<SaleDetail>,
@@ -22,7 +22,7 @@ export class ReportsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(MovementInventory)
     private readonly movementRepository: Repository<MovementInventory>, // Esta dependencia causaba el error
-  ) {}
+  ) { }
 
 
 
@@ -48,16 +48,16 @@ export class ReportsService {
         dateFormat = '%Y';
         break;
       default: // Si no se especifica, se calcula el total del rango de fechas
-      if (!startDate || !endDate) {
+        if (!startDate || !endDate) {
           throw new BadRequestException(
             'startDate y endDate son requeridos cuando no se especifica un periodo.',
           );
         }
         const totalResult = await this.saleRepository.createQueryBuilder('sale')
-            .select('SUM(sale.total)', 'valorTotal')
-            .addSelect('COUNT(sale.idsale)', 'numeroTransacciones')
-            .where({ fecha_hora: Between(new Date(startDate), new Date(endDate)) })
-            .getRawOne();
+          .select('SUM(sale.total)', 'valorTotal')
+          .addSelect('COUNT(sale.idsale)', 'numeroTransacciones')
+          .where({ fecha_hora: Between(new Date(startDate), new Date(endDate)) })
+          .getRawOne();
         return totalResult;
     }
 
@@ -82,7 +82,7 @@ export class ReportsService {
    */
   async getTopProductsSold(query: ReportQueryDto) {
     const limit = query.limit || 10;
-    
+
     return this.saleDetailRepository.createQueryBuilder('detail')
       .select('product.nombre', 'producto')
       .addSelect('SUM(detail.cantidad)', 'unidadesVendidas')
@@ -92,7 +92,7 @@ export class ReportsService {
       .limit(limit)
       .getRawMany();
   }
-  
+
   /**
    * 3. Ventas por Categoría
    */
@@ -107,9 +107,9 @@ export class ReportsService {
 
     if (query.startDate && query.endDate) {
       qb.innerJoin('detail.venta', 'sale')
-        .where('sale.fecha_hora BETWEEN :startDate AND :endDate', { 
-          startDate: query.startDate, 
-          endDate: query.endDate 
+        .where('sale.fecha_hora BETWEEN :startDate AND :endDate', {
+          startDate: query.startDate,
+          endDate: query.endDate
         });
     }
 
@@ -132,7 +132,7 @@ export class ReportsService {
       .limit(limit)
       .getRawMany();
   }
-  
+
   /**
    * 5. Comparativa de Ventas entre dos Periodos
    */
@@ -163,7 +163,7 @@ export class ReportsService {
       }
     };
   }
- // ==================================================
+  // ==================================================
   // ---         REPORTES DE INVENTARIO           ---
   // ==================================================
 
@@ -187,7 +187,7 @@ export class ReportsService {
       .addSelect('SUM(inventory.cantidad * product.precio)', 'totalPrecioVenta')
       .innerJoin('inventory.producto_id', 'product')
       .getRawOne();
-      
+
     return {
       valorTotalInventarioACosto: parseFloat(result.totalCosto) || 0,
       valorPotencialVenta: parseFloat(result.totalPrecioVenta) || 0
@@ -197,7 +197,7 @@ export class ReportsService {
   /**
    * 3. Historial de Movimientos de Inventario
    */
-   async getInventoryMovements(query: ReportQueryDto) {
+  async getInventoryMovements(query: ReportQueryDto) {
     const qb = this.movementRepository.createQueryBuilder('movement')
       // Unimos las tablas relacionadas para poder acceder a sus datos
       .innerJoin('movement.inventario_id', 'inventory')
@@ -218,9 +218,9 @@ export class ReportsService {
       .orderBy('movement.fecha', 'DESC');
 
     if (query.startDate && query.endDate) {
-      qb.where('movement.fecha BETWEEN :startDate AND :endDate', { 
-        startDate: query.startDate, 
-        endDate: query.endDate 
+      qb.where('movement.fecha BETWEEN :startDate AND :endDate', {
+        startDate: query.startDate,
+        endDate: query.endDate
       });
     }
 
@@ -256,41 +256,41 @@ export class ReportsService {
         endDate: query.endDate,
       });
     }
-    
+
     const movements = await movementsQuery.getRawMany();
 
     // Calcular el stock inicial (total de movimientos antes de la fecha de inicio del reporte)
     let stockInicial = 0;
     if (query.startDate) {
-        const initialStockQuery = baseQuery.clone()
-            .andWhere('movement.fecha < :startDate', { startDate: query.startDate })
-            .select('SUM(movement.cantidad)', 'total');
-            
-        const initialStockResult = await initialStockQuery.getRawOne();
-        stockInicial = parseFloat(initialStockResult.total) || 0;
+      const initialStockQuery = baseQuery.clone()
+        .andWhere('movement.fecha < :startDate', { startDate: query.startDate })
+        .select('SUM(movement.cantidad)', 'total');
+
+      const initialStockResult = await initialStockQuery.getRawOne();
+      stockInicial = parseFloat(initialStockResult.total) || 0;
     }
 
     // Calcular las existencias después de cada movimiento
     let existencias = stockInicial;
     const kardexMovimientos = movements.map(mov => {
-        existencias += mov.cantidad;
-        return {
-            fecha: mov.fecha,
-            descripcion: mov.descripcion,
-            entrada: mov.cantidad > 0 ? mov.cantidad : 0,
-            salida: mov.cantidad < 0 ? Math.abs(mov.cantidad) : 0,
-            existencias: existencias,
-        };
+      existencias += mov.cantidad;
+      return {
+        fecha: mov.fecha,
+        descripcion: mov.descripcion,
+        entrada: mov.cantidad > 0 ? mov.cantidad : 0,
+        salida: mov.cantidad < 0 ? Math.abs(mov.cantidad) : 0,
+        existencias: existencias,
+      };
     });
 
     return {
-        producto: {
-          id: product.idproduct,
-          nombre: product.nombre,
-          codigo: product.codigo
-        },
-        stockInicial,
-        movimientos: kardexMovimientos
+      producto: {
+        id: product.idproduct,
+        nombre: product.nombre,
+        codigo: product.codigo
+      },
+      stockInicial,
+      movimientos: kardexMovimientos
     };
   }
 }
