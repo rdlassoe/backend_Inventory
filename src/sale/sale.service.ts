@@ -56,7 +56,6 @@ export class SaleService {
       let totalVenta = 0;
       const detallesVenta: SaleDetail[] = [];
       const movimientosVenta: MovementInventory[] = [];
-
       // 2. --- Procesar cada producto del DTO ---
       for (const prodDto of createSaleDto.productos) {
         const producto = await queryRunner.manager.findOneBy(Product, { idproduct: prodDto.producto_id });

@@ -32,6 +32,7 @@ import { ReportsModule } from './reports/reports.module';
 
     // 2. Configura la conexión a la base de datos de forma asíncrona
     TypeOrmModule.forRootAsync({
+      
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
