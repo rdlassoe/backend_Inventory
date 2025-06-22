@@ -8,6 +8,16 @@ import { Product } from '../product/entities/product.entity';
 import { MovementInventory } from '../movement-inventory/entities/movement-inventory.entity';
 import { ComparisonQueryDto } from './dto/comparison-query.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
+import * as PDFDocument from 'pdfkit';
+
+// --- Constantes para el diseño ---
+const BRAND_COLOR = '#023E8A';
+const HEADER_COLOR = '#0077B6';
+const TEXT_COLOR = '#495057';
+const LIGHT_GRAY = '#F8F9FA'; // Un gris más claro
+const ROW_HEIGHT = 25;
+const PAGE_MARGIN = 30;
+const PAGE_WIDTH = 612; // Ancho de página LETTER
 
 @Injectable()
 export class ReportsService {
@@ -293,4 +303,176 @@ export class ReportsService {
       movimientos: kardexMovimientos
     };
   }
+
+
+  // --- Funciones de ayuda para DESCARGAR el PDF (Ahora más seguras) ---
+  //         --- NUEVO ENDPOINT PARA EL REPORTE GENERAL ---
+  async generateComprehensivePdf(query: ReportQueryDto): Promise<Buffer> {
+    const [topProducts, lowStockProducts, salesByCategory] = await Promise.all([
+      this.getTopProductsSold(query).catch(() => []),
+      this.getProductsWithLowStock().catch(() => []),
+      this.getSalesByCategory(query).catch(() => []),
+    ]);
+
+    const pdfBuffer: Buffer = await new Promise(resolve => {
+      const doc = new PDFDocument({ size: 'LETTER', margin: PAGE_MARGIN, bufferPages: true });
+
+      this.generateHeader(doc, 'Reporte General del Negocio');
+
+
+
+      this.generateTable(doc, 'Productos con Bajo Nivel de Stock',
+        [{ label: 'Producto', width: 300 }, { label: 'Stock Mínimo', width: 120, align: 'right' }, { label: 'Stock Actual', width: 120, align: 'right' }]
+        ,
+        lowStockProducts.map(p => [p?.producto_id?.nombre || 'N/A', p?.producto_id?.cantMinima || 0, p?.cantidad || 0])
+      );
+
+      this.generateTable(doc, 'Top Productos Más Vendidos',
+        [{ label: 'Producto', width: 382 }, { label: 'Unidades Vendidas', width: 150, align: 'right' }],
+        topProducts.map(p => [p.producto || 'N/A', p.unidadesVendidas || 0])
+      );
+
+      this.generateTable(doc, 'Resumen de Ventas por Categoría',
+        [{ label: 'Categoría', width: 382 }, { label: 'Total Vendido', width: 150, align: 'right' }],
+        salesByCategory.map(c => [c.categoria || 'N/A', `$${(parseFloat(c.valorTotal) || 0).toFixed(2)}`])
+      );
+
+      this.generateFooter(doc); // Dibuja el pie de página en todas las páginas existentes
+      doc.end();
+
+      const buffer = [];
+      doc.on('data', buffer.push.bind(buffer));
+      doc.on('end', () => resolve(Buffer.concat(buffer)));
+    });
+    return pdfBuffer;
+  }
+
+  // --- NUEVA FUNCIÓN GENÉRICA PARA CREAR TABLAS (CORREGIDA Y ROBUSTA) ---
+  private generateTable(doc: PDFKit.PDFDocument, title: string, headers: { label: string, width: number, align?: 'left' | 'right' | 'center' }[], rows: (string | number)[][]) {
+    const tableTopMargin = 30;
+    // Si no hay espacio para el título y al menos una fila, añade una nueva página
+    if (doc.y > doc.page.height - 150) doc.addPage();
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold').fontSize(14).fillColor(HEADER_COLOR).text(title, tableTopMargin);
+    doc.moveDown();
+
+    const tableStartY = doc.y;
+    const startX = PAGE_MARGIN;
+
+    // --- Dibuja el encabezado de la tabla ---
+    doc.rect(startX, tableStartY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(BRAND_COLOR);
+
+    let currentX = startX;
+    headers.forEach(header => {
+      doc.text(header.label, currentX + 5, tableStartY + 7, { width: header.width - 10, align: header.align || 'left' });
+      currentX += header.width;
+    });
+
+    // --- Dibuja las filas de la tabla ---
+    doc.font('Helvetica').fontSize(9);
+    let currentY = tableStartY + ROW_HEIGHT;
+
+    if (!rows || rows.length === 0) {
+      doc.fillColor(TEXT_COLOR).text("No hay datos para mostrar.", startX + 5, currentY + 7, { width: PAGE_WIDTH - startX * 2 - 10, align: 'center' });
+      doc.y = currentY + ROW_HEIGHT;
+      return;
+    }
+
+    rows.forEach((row, rowIndex) => {
+      // Si la fila va a salirse de la página, crea una nueva y redibuja el encabezado
+      if (currentY + ROW_HEIGHT > doc.page.height - PAGE_MARGIN) {
+        doc.addPage();
+        currentY = doc.page.margins.top;
+
+        doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY);
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(BRAND_COLOR);
+        let headerX = startX;
+        headers.forEach(header => {
+          doc.text(header.label, headerX + 5, currentY + 7, { width: header.width - 10, align: header.align || 'left' });
+          headerX += header.width;
+        });
+        currentY += ROW_HEIGHT;
+        doc.font('Helvetica').fontSize(9);
+      }
+
+      // Dibuja el fondo para filas alternas (zebra)
+      if (rowIndex % 2 !== 0) doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY).stroke();
+
+      currentX = startX;
+      row.forEach((cell, cellIndex) => {
+        doc.fillColor(TEXT_COLOR).text(String(cell), currentX + 5, currentY + 7, { width: headers[cellIndex].width - 10, align: headers[cellIndex].align || 'left' });
+        currentX += headers[cellIndex].width;
+      });
+      currentY += ROW_HEIGHT;
+    });
+
+    doc.y = currentY; // Actualiza la posición Y global después de dibujar la tabla.
+  }
+
+  // --- Funciones de Header y Footer (CORREGIDAS) ---
+  private generateHeader(doc: PDFKit.PDFDocument, title: string) {
+    // Dibuja el encabezado en la posición actual de la página
+    doc.fillColor(BRAND_COLOR).fontSize(20).font('Helvetica-Bold').text('Ferretería "El Tornillo de Oro"', { align: 'center' });
+    doc.fontSize(14).font('Helvetica').text(title, { align: 'center' }).moveDown();
+  }
+
+  // private generateFooter(doc: PDFKit.PDFDocument) {
+  //   const pageCount = doc.bufferedPageRange().count;
+  //   for (let i = 0; i < pageCount; i++) {
+  //       doc.switchToPage(i);
+  //       const pageBottom = doc.page.height - PAGE_MARGIN;
+  //       doc.moveTo(PAGE_MARGIN, pageBottom).lineTo(doc.page.width - PAGE_MARGIN, pageBottom).strokeColor(LIGHT_GRAY).stroke();
+  //       doc.fontSize(8).fillColor('gray')
+  //          .text(`Reporte generado el 21 de junio de 2025`, PAGE_MARGIN, pageBottom + 5, { align: 'left', lineBreak: false })
+  //          .text(`Página ${i + 1} de ${pageCount}`, PAGE_MARGIN, pageBottom + 5, { align: 'right'});
+  //   }
+  // }
+
+  private generateFooter(doc: PDFKit.PDFDocument) {
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
+
+      const pageBottom = doc.page.height - PAGE_MARGIN;
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const leftText = `Reporte generado el ${formattedDate}`;
+      const rightText = `Página ${i + 1} de ${pageCount}`;
+
+      // Dibujar línea horizontal
+      doc.moveTo(PAGE_MARGIN, pageBottom)
+        .lineTo(doc.page.width - PAGE_MARGIN, pageBottom)
+        .strokeColor(LIGHT_GRAY)
+        .stroke();
+
+      // Configurar estilo de texto
+      doc.fontSize(8).fillColor('gray');
+
+      // Imprimir texto izquierdo
+      doc.text(leftText, PAGE_MARGIN, pageBottom + 5, {
+        lineBreak: false,
+      });
+
+      // Calcular ancho del texto derecho
+      const rightTextWidth = doc.widthOfString(rightText);
+
+      // Imprimir texto derecho en la misma línea
+      doc.text(
+        rightText,
+        doc.page.width - PAGE_MARGIN - rightTextWidth,
+        pageBottom + 5,
+        { lineBreak: false }
+      );
+    }
+  }
+
 }
