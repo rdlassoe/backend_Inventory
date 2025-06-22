@@ -16,11 +16,11 @@ class ProductDetailDto {
 export class CreateSaleDto {
   @IsInt()
   @IsPositive()
-  readonly cliente_id: number;
+  readonly empleado_id: number;
   
   @IsInt()
   @IsPositive()
-  readonly empleado_id: number;
+  readonly cliente_id: number;
 
   @IsInt()
   @IsPositive()
