@@ -22,7 +22,7 @@ const PAGE_WIDTH = 612; // Ancho de página LETTER
 @Injectable()
 export class ReportsService {
   constructor(
-   @InjectRepository(Sale)
+    @InjectRepository(Sale)
     private readonly saleRepository: Repository<Sale>,
     @InjectRepository(SaleDetail)
     private readonly saleDetailRepository: Repository<SaleDetail>,
@@ -32,7 +32,7 @@ export class ReportsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(MovementInventory)
     private readonly movementRepository: Repository<MovementInventory>, // Esta dependencia causaba el error
-  ) {}
+  ) { }
 
 
 
@@ -58,16 +58,16 @@ export class ReportsService {
         dateFormat = '%Y';
         break;
       default: // Si no se especifica, se calcula el total del rango de fechas
-      if (!startDate || !endDate) {
+        if (!startDate || !endDate) {
           throw new BadRequestException(
             'startDate y endDate son requeridos cuando no se especifica un periodo.',
           );
         }
         const totalResult = await this.saleRepository.createQueryBuilder('sale')
-            .select('SUM(sale.total)', 'valorTotal')
-            .addSelect('COUNT(sale.idsale)', 'numeroTransacciones')
-            .where({ fecha_hora: Between(new Date(startDate), new Date(endDate)) })
-            .getRawOne();
+          .select('SUM(sale.total)', 'valorTotal')
+          .addSelect('COUNT(sale.idsale)', 'numeroTransacciones')
+          .where({ fecha_hora: Between(new Date(startDate), new Date(endDate)) })
+          .getRawOne();
         return totalResult;
     }
 
@@ -92,7 +92,7 @@ export class ReportsService {
    */
   async getTopProductsSold(query: ReportQueryDto) {
     const limit = query.limit || 10;
-    
+
     return this.saleDetailRepository.createQueryBuilder('detail')
       .select('product.nombre', 'producto')
       .addSelect('SUM(detail.cantidad)', 'unidadesVendidas')
@@ -102,7 +102,7 @@ export class ReportsService {
       .limit(limit)
       .getRawMany();
   }
-  
+
   /**
    * 3. Ventas por Categoría
    */
@@ -117,9 +117,9 @@ export class ReportsService {
 
     if (query.startDate && query.endDate) {
       qb.innerJoin('detail.venta', 'sale')
-        .where('sale.fecha_hora BETWEEN :startDate AND :endDate', { 
-          startDate: query.startDate, 
-          endDate: query.endDate 
+        .where('sale.fecha_hora BETWEEN :startDate AND :endDate', {
+          startDate: query.startDate,
+          endDate: query.endDate
         });
     }
 
@@ -142,7 +142,7 @@ export class ReportsService {
       .limit(limit)
       .getRawMany();
   }
-  
+
   /**
    * 5. Comparativa de Ventas entre dos Periodos
    */
@@ -173,7 +173,7 @@ export class ReportsService {
       }
     };
   }
- // ==================================================
+  // ==================================================
   // ---         REPORTES DE INVENTARIO           ---
   // ==================================================
 
@@ -197,7 +197,7 @@ export class ReportsService {
       .addSelect('SUM(inventory.cantidad * product.precio)', 'totalPrecioVenta')
       .innerJoin('inventory.producto_id', 'product')
       .getRawOne();
-      
+
     return {
       valorTotalInventarioACosto: parseFloat(result.totalCosto) || 0,
       valorPotencialVenta: parseFloat(result.totalPrecioVenta) || 0
@@ -207,7 +207,7 @@ export class ReportsService {
   /**
    * 3. Historial de Movimientos de Inventario
    */
-   async getInventoryMovements(query: ReportQueryDto) {
+  async getInventoryMovements(query: ReportQueryDto) {
     const qb = this.movementRepository.createQueryBuilder('movement')
       // Unimos las tablas relacionadas para poder acceder a sus datos
       .innerJoin('movement.inventario_id', 'inventory')
@@ -228,9 +228,9 @@ export class ReportsService {
       .orderBy('movement.fecha', 'DESC');
 
     if (query.startDate && query.endDate) {
-      qb.where('movement.fecha BETWEEN :startDate AND :endDate', { 
-        startDate: query.startDate, 
-        endDate: query.endDate 
+      qb.where('movement.fecha BETWEEN :startDate AND :endDate', {
+        startDate: query.startDate,
+        endDate: query.endDate
       });
     }
 
@@ -266,44 +266,44 @@ export class ReportsService {
         endDate: query.endDate,
       });
     }
-    
+
     const movements = await movementsQuery.getRawMany();
 
     // Calcular el stock inicial (total de movimientos antes de la fecha de inicio del reporte)
     let stockInicial = 0;
     if (query.startDate) {
-        const initialStockQuery = baseQuery.clone()
-            .andWhere('movement.fecha < :startDate', { startDate: query.startDate })
-            .select('SUM(movement.cantidad)', 'total');
-            
-        const initialStockResult = await initialStockQuery.getRawOne();
-        stockInicial = parseFloat(initialStockResult.total) || 0;
+      const initialStockQuery = baseQuery.clone()
+        .andWhere('movement.fecha < :startDate', { startDate: query.startDate })
+        .select('SUM(movement.cantidad)', 'total');
+
+      const initialStockResult = await initialStockQuery.getRawOne();
+      stockInicial = parseFloat(initialStockResult.total) || 0;
     }
 
     // Calcular las existencias después de cada movimiento
     let existencias = stockInicial;
     const kardexMovimientos = movements.map(mov => {
-        existencias += mov.cantidad;
-        return {
-            fecha: mov.fecha,
-            descripcion: mov.descripcion,
-            entrada: mov.cantidad > 0 ? mov.cantidad : 0,
-            salida: mov.cantidad < 0 ? Math.abs(mov.cantidad) : 0,
-            existencias: existencias,
-        };
+      existencias += mov.cantidad;
+      return {
+        fecha: mov.fecha,
+        descripcion: mov.descripcion,
+        entrada: mov.cantidad > 0 ? mov.cantidad : 0,
+        salida: mov.cantidad < 0 ? Math.abs(mov.cantidad) : 0,
+        existencias: existencias,
+      };
     });
 
     return {
-        producto: {
-          id: product.idproduct,
-          nombre: product.nombre,
-          codigo: product.codigo
-        },
-        stockInicial,
-        movimientos: kardexMovimientos
+      producto: {
+        id: product.idproduct,
+        nombre: product.nombre,
+        codigo: product.codigo
+      },
+      stockInicial,
+      movimientos: kardexMovimientos
     };
   }
-  
+
 
   // --- Funciones de ayuda para DESCARGAR el PDF (Ahora más seguras) ---
   //         --- NUEVO ENDPOINT PARA EL REPORTE GENERAL ---
@@ -313,28 +313,28 @@ export class ReportsService {
       this.getProductsWithLowStock().catch(() => []),
       this.getSalesByCategory(query).catch(() => []),
     ]);
-    
+
     const pdfBuffer: Buffer = await new Promise(resolve => {
       const doc = new PDFDocument({ size: 'LETTER', margin: PAGE_MARGIN, bufferPages: true });
-      
+
       this.generateHeader(doc, 'Reporte General del Negocio');
-      
-     
+
+
 
       this.generateTable(doc, 'Productos con Bajo Nivel de Stock',
         [{ label: 'Producto', width: 300 }, { label: 'Stock Mínimo', width: 120, align: 'right' }, { label: 'Stock Actual', width: 120, align: 'right' }]
         ,
-        lowStockProducts.map(p => [ p?.producto_id?.nombre || 'N/A', p?.producto_id?.cantMinima || 0, p?.cantidad || 0])
+        lowStockProducts.map(p => [p?.producto_id?.nombre || 'N/A', p?.producto_id?.cantMinima || 0, p?.cantidad || 0])
       );
 
-       this.generateTable(doc, 'Top Productos Más Vendidos', 
-        [{ label: 'Producto', width: 382 }, { label: 'Unidades Vendidas', width: 150, align: 'right' }], 
+      this.generateTable(doc, 'Top Productos Más Vendidos',
+        [{ label: 'Producto', width: 382 }, { label: 'Unidades Vendidas', width: 150, align: 'right' }],
         topProducts.map(p => [p.producto || 'N/A', p.unidadesVendidas || 0])
       );
-      
+
       this.generateTable(doc, 'Resumen de Ventas por Categoría',
         [{ label: 'Categoría', width: 382 }, { label: 'Total Vendido', width: 150, align: 'right' }],
-        salesByCategory.map(c => [ c.categoria || 'N/A', `$${(parseFloat(c.valorTotal) || 0).toFixed(2)}`])
+        salesByCategory.map(c => [c.categoria || 'N/A', `$${(parseFloat(c.valorTotal) || 0).toFixed(2)}`])
       );
 
       this.generateFooter(doc); // Dibuja el pie de página en todas las páginas existentes
@@ -349,10 +349,10 @@ export class ReportsService {
 
   // --- NUEVA FUNCIÓN GENÉRICA PARA CREAR TABLAS (CORREGIDA Y ROBUSTA) ---
   private generateTable(doc: PDFKit.PDFDocument, title: string, headers: { label: string, width: number, align?: 'left' | 'right' | 'center' }[], rows: (string | number)[][]) {
-    const tableTopMargin = 30;  
+    const tableTopMargin = 30;
     // Si no hay espacio para el título y al menos una fila, añade una nueva página
     if (doc.y > doc.page.height - 150) doc.addPage();
-    
+
     doc.moveDown();
     doc.font('Helvetica-Bold').fontSize(14).fillColor(HEADER_COLOR).text(title, tableTopMargin);
     doc.moveDown();
@@ -363,7 +363,7 @@ export class ReportsService {
     // --- Dibuja el encabezado de la tabla ---
     doc.rect(startX, tableStartY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY);
     doc.font('Helvetica-Bold').fontSize(10).fillColor(BRAND_COLOR);
-    
+
     let currentX = startX;
     headers.forEach(header => {
       doc.text(header.label, currentX + 5, tableStartY + 7, { width: header.width - 10, align: header.align || 'left' });
@@ -373,11 +373,11 @@ export class ReportsService {
     // --- Dibuja las filas de la tabla ---
     doc.font('Helvetica').fontSize(9);
     let currentY = tableStartY + ROW_HEIGHT;
-    
+
     if (!rows || rows.length === 0) {
-        doc.fillColor(TEXT_COLOR).text("No hay datos para mostrar.", startX + 5, currentY + 7, { width: PAGE_WIDTH - startX * 2 - 10, align: 'center' });
-        doc.y = currentY + ROW_HEIGHT;
-        return;
+      doc.fillColor(TEXT_COLOR).text("No hay datos para mostrar.", startX + 5, currentY + 7, { width: PAGE_WIDTH - startX * 2 - 10, align: 'center' });
+      doc.y = currentY + ROW_HEIGHT;
+      return;
     }
 
     rows.forEach((row, rowIndex) => {
@@ -385,7 +385,7 @@ export class ReportsService {
       if (currentY + ROW_HEIGHT > doc.page.height - PAGE_MARGIN) {
         doc.addPage();
         currentY = doc.page.margins.top;
-        
+
         doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(BRAND_COLOR);
         let headerX = startX;
@@ -396,10 +396,10 @@ export class ReportsService {
         currentY += ROW_HEIGHT;
         doc.font('Helvetica').fontSize(9);
       }
-      
+
       // Dibuja el fondo para filas alternas (zebra)
       if (rowIndex % 2 !== 0) doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY).stroke();
-      
+
       currentX = startX;
       row.forEach((cell, cellIndex) => {
         doc.fillColor(TEXT_COLOR).text(String(cell), currentX + 5, currentY + 7, { width: headers[cellIndex].width - 10, align: headers[cellIndex].align || 'left' });
@@ -410,7 +410,7 @@ export class ReportsService {
 
     doc.y = currentY; // Actualiza la posición Y global después de dibujar la tabla.
   }
-  
+
   // --- Funciones de Header y Footer (CORREGIDAS) ---
   private generateHeader(doc: PDFKit.PDFDocument, title: string) {
     // Dibuja el encabezado en la posición actual de la página
@@ -431,48 +431,48 @@ export class ReportsService {
   // }
 
   private generateFooter(doc: PDFKit.PDFDocument) {
-  const pageCount = doc.bufferedPageRange().count;
-  for (let i = 0; i < pageCount; i++) {
-    doc.switchToPage(i);
+    const pageCount = doc.bufferedPageRange().count;
+    for (let i = 0; i < pageCount; i++) {
+      doc.switchToPage(i);
 
-    const pageBottom = doc.page.height - PAGE_MARGIN;
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    const leftText = `Reporte generado el ${formattedDate}`;
-    const rightText = `Página ${i + 1} de ${pageCount}`;
+      const pageBottom = doc.page.height - PAGE_MARGIN;
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const leftText = `Reporte generado el ${formattedDate}`;
+      const rightText = `Página ${i + 1} de ${pageCount}`;
 
-    // Dibujar línea horizontal
-    doc.moveTo(PAGE_MARGIN, pageBottom)
-       .lineTo(doc.page.width - PAGE_MARGIN, pageBottom)
-       .strokeColor(LIGHT_GRAY)
-       .stroke();
+      // Dibujar línea horizontal
+      doc.moveTo(PAGE_MARGIN, pageBottom)
+        .lineTo(doc.page.width - PAGE_MARGIN, pageBottom)
+        .strokeColor(LIGHT_GRAY)
+        .stroke();
 
-    // Configurar estilo de texto
-    doc.fontSize(8).fillColor('gray');
+      // Configurar estilo de texto
+      doc.fontSize(8).fillColor('gray');
 
-    // Imprimir texto izquierdo
-    doc.text(leftText, PAGE_MARGIN, pageBottom + 5, {
-      lineBreak: false,
-    });
+      // Imprimir texto izquierdo
+      doc.text(leftText, PAGE_MARGIN, pageBottom + 5, {
+        lineBreak: false,
+      });
 
-    // Calcular ancho del texto derecho
-    const rightTextWidth = doc.widthOfString(rightText);
+      // Calcular ancho del texto derecho
+      const rightTextWidth = doc.widthOfString(rightText);
 
-    // Imprimir texto derecho en la misma línea
-    doc.text(
-      rightText,
-      doc.page.width - PAGE_MARGIN - rightTextWidth,
-      pageBottom + 5,
-      { lineBreak: false }
-    );
+      // Imprimir texto derecho en la misma línea
+      doc.text(
+        rightText,
+        doc.page.width - PAGE_MARGIN - rightTextWidth,
+        pageBottom + 5,
+        { lineBreak: false }
+      );
+    }
   }
-}
 
 }
