@@ -317,7 +317,7 @@ export class ReportsService {
     const pdfBuffer: Buffer = await new Promise(resolve => {
       const doc = new PDFDocument({ size: 'LETTER', margin: PAGE_MARGIN, bufferPages: true });
 
-      this.generateHeader(doc, 'Reporte General del Negocio');
+      this.generateHeader(doc, 'Reporte General');
 
 
 
@@ -414,21 +414,9 @@ export class ReportsService {
   // --- Funciones de Header y Footer (CORREGIDAS) ---
   private generateHeader(doc: PDFKit.PDFDocument, title: string) {
     // Dibuja el encabezado en la posición actual de la página
-    doc.fillColor(BRAND_COLOR).fontSize(20).font('Helvetica-Bold').text('Ferretería "El Tornillo de Oro"', { align: 'center' });
+    doc.fillColor(BRAND_COLOR).fontSize(20).font('Helvetica-Bold').text('Ferretería "Ferrelectricos Putumayo"', { align: 'center' });
     doc.fontSize(14).font('Helvetica').text(title, { align: 'center' }).moveDown();
   }
-
-  // private generateFooter(doc: PDFKit.PDFDocument) {
-  //   const pageCount = doc.bufferedPageRange().count;
-  //   for (let i = 0; i < pageCount; i++) {
-  //       doc.switchToPage(i);
-  //       const pageBottom = doc.page.height - PAGE_MARGIN;
-  //       doc.moveTo(PAGE_MARGIN, pageBottom).lineTo(doc.page.width - PAGE_MARGIN, pageBottom).strokeColor(LIGHT_GRAY).stroke();
-  //       doc.fontSize(8).fillColor('gray')
-  //          .text(`Reporte generado el 21 de junio de 2025`, PAGE_MARGIN, pageBottom + 5, { align: 'left', lineBreak: false })
-  //          .text(`Página ${i + 1} de ${pageCount}`, PAGE_MARGIN, pageBottom + 5, { align: 'right'});
-  //   }
-  // }
 
   private generateFooter(doc: PDFKit.PDFDocument) {
     const pageCount = doc.bufferedPageRange().count;
