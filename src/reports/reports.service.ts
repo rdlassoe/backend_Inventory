@@ -388,7 +388,7 @@ export class ReportsService {
     }
 
     rows.forEach((row, rowIndex) => {
-      // Si la fila va a salirse de la página, crea una nueva y redibuja el encabezado
+      // Si la fila va a salirse de la página, crea una nueva y redibuja el encabeza
       if (currentY + ROW_HEIGHT > doc.page.height - PAGE_MARGIN) {
         doc.addPage();
         currentY = doc.page.margins.top;
