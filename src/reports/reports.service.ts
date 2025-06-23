@@ -18,6 +18,10 @@ const LIGHT_GRAY = '#F8F9FA'; // Un gris más claro
 const ROW_HEIGHT = 25;
 const PAGE_MARGIN = 30;
 const PAGE_WIDTH = 612; // Ancho de página LETTER
+const ROW_ALT_COLOR = '#DDE4EA'; // Gris azulado claro
+const HEADER_BACKGROUND = '#D0E6F7'; // Azul claro
+
+// --- Fin de constantes ---
 
 @Injectable()
 export class ReportsService {
@@ -324,7 +328,11 @@ export class ReportsService {
       this.generateTable(doc, 'Productos con Bajo Nivel de Stock',
         [{ label: 'Producto', width: 300 }, { label: 'Stock Mínimo', width: 120, align: 'right' }, { label: 'Stock Actual', width: 120, align: 'right' }]
         ,
+
+      
         lowStockProducts.map(p => [p?.producto_id?.nombre || 'N/A', p?.producto_id?.cantMinima || 0, p?.cantidad || 0])
+        
+
       );
 
       this.generateTable(doc, 'Top Productos Más Vendidos',
@@ -359,9 +367,11 @@ export class ReportsService {
 
     const tableStartY = doc.y;
     const startX = PAGE_MARGIN;
+    const tableWidth = PAGE_WIDTH - startX * 2;
 
     // --- Dibuja el encabezado de la tabla ---
-    doc.rect(startX, tableStartY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY);
+    doc.rect(startX, tableStartY, tableWidth, ROW_HEIGHT).fill(HEADER_BACKGROUND);
+
     doc.font('Helvetica-Bold').fontSize(10).fillColor(BRAND_COLOR);
 
     let currentX = startX;
@@ -398,7 +408,10 @@ export class ReportsService {
       }
 
       // Dibuja el fondo para filas alternas (zebra)
-      if (rowIndex % 2 !== 0) doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(LIGHT_GRAY).stroke();
+
+      if (rowIndex % 2 !== 0)doc.rect(startX, currentY, PAGE_WIDTH - startX * 2, ROW_HEIGHT).fill(ROW_ALT_COLOR).stroke();
+
+      
 
       currentX = startX;
       row.forEach((cell, cellIndex) => {
@@ -406,17 +419,28 @@ export class ReportsService {
         currentX += headers[cellIndex].width;
       });
       currentY += ROW_HEIGHT;
+      
     });
+   
 
     doc.y = currentY; // Actualiza la posición Y global después de dibujar la tabla.
+    // --- Agrega el borde completo alrededor de la tabla ---
+  const tableHeight = currentY - tableStartY;
+  doc.rect(startX, tableStartY, tableWidth, tableHeight)
+     .strokeColor(BRAND_COLOR)
+     .lineWidth(1)
+     .stroke();
   }
 
   // --- Funciones de Header y Footer (CORREGIDAS) ---
   private generateHeader(doc: PDFKit.PDFDocument, title: string) {
     // Dibuja el encabezado en la posición actual de la página
-    doc.fillColor(BRAND_COLOR).fontSize(20).font('Helvetica-Bold').text('Ferretería "Ferrelectricos Putumayo"', { align: 'center' });
+    doc.fillColor(BRAND_COLOR).fontSize(20).font('Helvetica-Bold').text('Ferretería "FERRELECTRICOS"', { align: 'center' });
     doc.fontSize(14).font('Helvetica').text(title, { align: 'center' }).moveDown();
+    const tableStartY = doc.y;
+
   }
+
 
   private generateFooter(doc: PDFKit.PDFDocument) {
     const pageCount = doc.bufferedPageRange().count;
@@ -462,5 +486,50 @@ export class ReportsService {
       );
     }
   }
+
+
+  // ==================================================
+  // ---         REPORTES DE BAJO STOCK-
+  // ==================================================
+//REPORTE PDF PARA EL STOCK BAJO STOCK
+async generateLowStockPdf(): Promise<Buffer> {
+  const lowStockProducts = await this.getProductsWithLowStock().catch(() => []);
+
+  const pdfBuffer: Buffer = await new Promise(resolve => {
+    const doc = new PDFDocument({ size: 'LETTER', margin: PAGE_MARGIN, bufferPages: true });
+
+    // Encabezado del documento
+    this.generateHeader(doc, 'Reporte de Productos con Bajo Stock');
+
+    // Verificar si hay productos
+    if (!lowStockProducts || lowStockProducts.length === 0) {
+      doc.moveDown(2);
+      doc.fontSize(12).fillColor(TEXT_COLOR).text('No hay productos con stock bajo en este momento.', { align: 'center' });
+    } else {
+      // Tabla de productos con bajo stock
+      this.generateTable(doc, 'Productos con Bajo Nivel de Stock',
+        [
+          { label: 'Producto', width: 300 },
+          { label: 'Stock Mínimo', width: 120, align: 'right' },
+          { label: 'Stock Actual', width: 120, align: 'right' }
+        ],
+        lowStockProducts.map(p => [
+          p?.producto_id?.nombre || 'N/A',
+          p?.producto_id?.cantMinima || 0,
+          p?.cantidad || 0
+        ])
+      );
+    }
+
+    this.generateFooter(doc);
+    doc.end();
+
+    const buffer: Buffer[] = [];
+    doc.on('data', buffer.push.bind(buffer));
+    doc.on('end', () => resolve(Buffer.concat(buffer)));
+  });
+
+  return pdfBuffer;
+}
 
 }
