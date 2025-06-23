@@ -62,7 +62,7 @@ export class ReportsController {
   }
 
   // --- NUEVO ENDPOINT PARA EL REPORTE GENERAL ---
-  @Get('comprehensive-pdf')
+  @Get('general-pdf')
   async getComprehensivePdfReport(@Query() query: ReportQueryDto, @Res() res: Response) {
       const pdfBuffer = await this.reportsService.generateComprehensivePdf(query);
 
@@ -74,5 +74,25 @@ export class ReportsController {
 
       res.end(pdfBuffer);
   }
+
+ ///Get('stock-bajo-pdf')
+  
+  //ync downloadLowStockReport(@Res() res: Response) {
+  //nst buffer = await this.reportsService.generateLowStockPdf();
+  //s.end(buffer);
+//
+@Get('stock-bajo-pdf')
+  async generateLowStockPdf(@Query() query: ReportQueryDto, @Res() res: Response) {
+      const pdfBuffer = await this.reportsService.generateLowStockPdf();
+
+      res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'attachment; filename=reporte_general.pdf',
+          'Content-Length': pdfBuffer.length,
+      });
+
+      res.end(pdfBuffer);
+  }
+
 }
 
