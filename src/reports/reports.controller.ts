@@ -7,8 +7,8 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { Response } from 'express';
 
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin') // Solo los administradores pueden acceder a los reportes
+//@UseGuards(JwtAuthGuard, RolesGuard)
+//@Roles('admin') // Solo los administradores pueden acceder a los reportes
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}

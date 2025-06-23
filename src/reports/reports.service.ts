@@ -317,7 +317,7 @@ export class ReportsService {
     const pdfBuffer: Buffer = await new Promise(resolve => {
       const doc = new PDFDocument({ size: 'LETTER', margin: PAGE_MARGIN, bufferPages: true });
 
-      this.generateHeader(doc, 'Reporte General');
+      this.generateHeader(doc, 'Reporte General del Negocio');
 
 
 
