@@ -12,6 +12,13 @@ import { MovementInventory } from '../movement-inventory/entities/movement-inven
 import { User } from '../user/entities/user.entity';
 import { TypeMovement } from '../type-movement/entities/type-movement.entity';
 import { UpdateSaleDto } from './dto/update-sale.dto';
+import * as PDFDocument from 'pdfkit';
+import * as numeroALetras from 'numero-a-letras';
+
+
+const NumeroALetras = require('numero-a-letras');
+
+
 
 @Injectable()
 export class SaleService {
@@ -93,6 +100,7 @@ export class SaleService {
         detallesVenta.push(detalle);
         
         totalVenta += detalle.cantidad * detalle.precio_unitario;
+        
       }
       
       // 3. --- Crear la Venta principal ---
@@ -270,5 +278,143 @@ export class SaleService {
     } finally {
       await queryRunner.release();
     }
+  }
+  //GENERAR PDF DE FACTURA
+  // Este método genera un PDF de la factura de una venta específica.
+  // Utiliza PDFKit para crear el documento y NumeroALetras para convertir el total a letras.
+  // El PDF incluye encabezado, información de la venta, detalles del cliente, productos vendidos,
+  // totales y un pie de página.  
+
+
+  private formatCOP = (valor: number) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(valor);
+
+  async generateInvoicePdf(saleId: number): Promise<Buffer> {
+    const sale = await this.saleRepository.findOne({
+      where: { idsale: saleId },
+      relations: ['cliente', 'empleado', 'metodo_pago', 'detalles', 'detalles.producto'],
+    });
+
+    if (!sale) {
+      throw new NotFoundException(`Venta con ID ${saleId} no encontrada.`);
+    }
+
+    const doc = new PDFDocument({ size: 'LETTER', margin: 40, bufferPages: true });
+    const bufferChunks: Buffer[] = [];
+
+    doc.on('data', chunk => bufferChunks.push(chunk));
+    const pdfDone = new Promise<Buffer>((resolve) => {
+      doc.on('end', () => resolve(Buffer.concat(bufferChunks)));
+    });
+
+    // Encabezado de la ferretería
+    doc.fontSize(18).font('Helvetica-Bold').text('Ferretería Industrial La Tuerca Fina', { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text('Cra. 45 #32-67, Barrio Centro, Bogotá, Colombia', { align: 'center' });
+    doc.text('Tel: +57 1 234 5678 - contacto@latuercafina.com', { align: 'center' });
+    doc.moveDown();
+
+    // Info de la factura
+    doc.fontSize(12).font('Helvetica-Bold').text(`Factura N° ${sale.idsale}`);
+    doc.font('Helvetica').text(`Fecha: ${sale.fecha_hora.toLocaleString('es-CO')}`);
+    doc.text(`Método de Pago: ${sale.metodo_pago.description}`);
+    doc.moveDown();
+
+    // Cliente
+    doc.font('Helvetica-Bold').text('Cliente:');
+    doc.font('Helvetica').text(`${sale.cliente.nombre} ${sale.cliente.apellido}`);
+    doc.text(`Identificación: ${sale.cliente.numero_identificacion}`);
+    doc.text(`Teléfono: ${sale.cliente.movil || 'N/A'}`);
+    doc.text(`Correo: ${sale.cliente.email || 'N/A'}`);
+    doc.moveDown();
+
+    // Tabla productos
+    doc.font('Helvetica-Bold').text('Detalle de productos vendidos:');
+    doc.moveDown(0.5);
+
+    const headers = ['Código', 'Producto', 'Cantidad', 'Precio U.', 'IVA', 'Subtotal'];
+    const columnWidths = [60, 150, 60, 80, 50, 80];
+    const startX = doc.x;
+    let y = doc.y;
+
+    // Header tabla
+    doc.rect(startX, y, 530, 20).fill('#D0E6F7').stroke();
+    doc.fillColor('black').fontSize(10).font('Helvetica-Bold');
+    let x = startX;
+    headers.forEach((h, i) => {
+      doc.text(h, x + 2, y + 5, { width: columnWidths[i], align: 'left' });
+      x += columnWidths[i];
+    });
+
+    y += 20;
+    let totalIVA = 0;
+    let subtotalFinal = 0;
+
+    doc.font('Helvetica').fontSize(9);
+
+    sale.detalles.forEach((detalle, index) => {
+      const producto = detalle.producto;
+      const precioUnitario = parseFloat(detalle.precio_unitario as any);
+      const iva = parseFloat(detalle.iva as any);
+      const subtotal = detalle.cantidad * precioUnitario;
+      const ivaLinea = subtotal * iva;
+
+      totalIVA += ivaLinea;
+      subtotalFinal += subtotal;
+
+      const row = [
+        producto.codigo,
+        producto.nombre,
+        detalle.cantidad,
+        this.formatCOP(precioUnitario),
+        `${(iva * 100).toFixed(0)}%`,
+        this.formatCOP(subtotal + ivaLinea),
+      ];
+
+      x = startX;
+      if (index % 2 === 1) {
+        doc.rect(startX, y, 530, 20).fill('#E3F2FD').stroke();
+      }
+
+      row.forEach((cell, i) => {
+        doc.fillColor('black').text(String(cell), x + 2, y + 5, {
+          width: columnWidths[i],
+          align: 'left',
+        });
+        x += columnWidths[i];
+      });
+
+      y += 20;
+      if (y > doc.page.height - 100) {
+        doc.addPage();
+        y = doc.y;
+      }
+    });
+
+    doc.moveDown();
+
+    // Totales
+    doc.font('Helvetica-Bold').text(`Subtotal: ${this.formatCOP(subtotalFinal)}`);
+    doc.text(`IVA Total: ${this.formatCOP(totalIVA)}`);
+    doc.text(`TOTAL A PAGAR: ${this.formatCOP(sale.total)}`);
+    doc.moveDown();
+
+    // Total en letras
+    doc.font('Helvetica-Bold').text('TOTAL EN LETRAS:');
+    doc.font('Helvetica').text(
+      NumeroALetras.numeroALetras (sale.total, {
+    plural: 'pesos',
+    singular: 'peso',
+    centPlural: 'centavos',
+    centSingular: 'centavo',
+  })
+);
+
+    // Pie de página
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor('gray').text('Gracias por su compra.', { align: 'center' });
+    doc.text(`Factura generada el ${new Date().toLocaleString('es-CO')}`, { align: 'center' });
+
+    doc.end();
+    return pdfDone;
   }
 }
