@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ParseIntPipe, Patch, Delete, Header, Res } from '@nestjs/common';
 import { SaleService } from './sale.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
+import { Response } from 'express';
 
 @Controller('sale')
 export class SaleController {
@@ -50,5 +51,13 @@ export class SaleController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.saleService.remove(id);
+  }
+
+  @Get('factura/:id')
+  @Header('Content-Type', 'application/pdf')
+  @Header('Content-Disposition', 'attachment; filename=factura.pdf')
+  async downloadInvoice(@Param('id') id: number, @Res() res: Response) {
+    const buffer = await this.saleService.generateInvoicePdf(+id);
+    res.end(buffer);
   }
 }
