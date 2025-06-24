@@ -12,12 +12,7 @@ import { MovementInventory } from '../movement-inventory/entities/movement-inven
 import { User } from '../user/entities/user.entity';
 import { TypeMovement } from '../type-movement/entities/type-movement.entity';
 import { UpdateSaleDto } from './dto/update-sale.dto';
-import * as PDFDocument from 'pdfkit';
-import * as numeroALetras from 'numero-a-letras';
-
-
-const NumeroALetras = require('numero-a-letras');
-
+import * as PDFDocument from 'pdfkit'
 
 
 @Injectable()
@@ -28,7 +23,7 @@ export class SaleService {
     private readonly dataSource: DataSource,
     // Inyectamos el repositorio de Sale para operaciones de consulta simples.
     @InjectRepository(Sale) private readonly saleRepository: Repository<Sale>,
-  ) {}
+  ) { }
 
   /**
    * Crea una nueva venta, actualiza el stock y registra los movimientos
@@ -46,7 +41,7 @@ export class SaleService {
       // 1. --- Validar existencias de entidades principales ---
       const cliente = await queryRunner.manager.findOneBy(Person, { idperson: createSaleDto.cliente_id });
       if (!cliente) throw new NotFoundException(`Cliente con ID #${createSaleDto.cliente_id} no encontrado.`);
-      
+
       const empleado = await queryRunner.manager.findOneBy(Person, { idperson: createSaleDto.empleado_id });
       if (!empleado) throw new NotFoundException(`Empleado con ID #${createSaleDto.empleado_id} no encontrado.`);
 
@@ -55,7 +50,7 @@ export class SaleService {
 
       const metodoPago = await queryRunner.manager.findOneBy(PaymentMethod, { idpayment_method: createSaleDto.metodo_pago_id });
       if (!metodoPago) throw new NotFoundException(`Método de pago con ID #${createSaleDto.metodo_pago_id} no encontrado.`);
-      
+
       // Asumimos que el ID 2 es para "Salida por Venta". Esto debería ser configurable.
       const tipoMovimientoVenta = await queryRunner.manager.findOneBy(TypeMovement, { idtype_movement: 2 });
       if (!tipoMovimientoVenta) throw new NotFoundException('Tipo de Movimiento "Salida por Venta" (ID 2) debe existir en la base de datos.');
@@ -72,7 +67,7 @@ export class SaleService {
         if (!inventario || inventario.cantidad < prodDto.cantidad) {
           throw new BadRequestException(`Stock insuficiente para "${producto.nombre}". Stock actual: ${inventario?.cantidad || 0}.`);
         }
-        
+
         // Actualizar stock en inventario
         inventario.cantidad -= prodDto.cantidad;
         inventario.fecha_actualizacion = new Date();
@@ -91,17 +86,17 @@ export class SaleService {
 
         // Crear detalle de venta
         const detalle = queryRunner.manager.create(SaleDetail, {
-            producto: producto,
-            cantidad: prodDto.cantidad,
-            precio_unitario: producto.precio,
-            iva: producto.iva,
+          producto: producto,
+          cantidad: prodDto.cantidad,
+          precio_unitario: producto.precio,
+          iva: producto.iva,
         });
         detallesVenta.push(detalle);
-        
+
         totalVenta += detalle.cantidad * detalle.precio_unitario;
-        
+
       }
-      
+
       // 3. --- Crear la Venta principal ---
       const nuevaVenta = queryRunner.manager.create(Sale, {
         cliente: cliente,
@@ -115,24 +110,24 @@ export class SaleService {
       const ventaGuardada = await queryRunner.manager.save(nuevaVenta);
 
       // 4. --- Actualizar y guardar los movimientos de inventario con el ID de venta real ---
-      for(const movimiento of movimientosVenta){
-          movimiento.descripcion = `Venta #${ventaGuardada.idsale}`;
-          await queryRunner.manager.save(movimiento);
+      for (const movimiento of movimientosVenta) {
+        movimiento.descripcion = `Venta #${ventaGuardada.idsale}`;
+        await queryRunner.manager.save(movimiento);
       }
-      
+
       // Si todo fue exitoso, confirmar la transacción
       await queryRunner.commitTransaction();
-      
+
       // Devolver la venta completa con sus relaciones, asegurando que no sea null.
-      const resultadoFinal = await this.saleRepository.findOne({ 
-        where: { idsale: ventaGuardada.idsale }, 
-        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+      const resultadoFinal = await this.saleRepository.findOne({
+        where: { idsale: ventaGuardada.idsale },
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago']
       });
       if (!resultadoFinal) {
         throw new InternalServerErrorException('No se pudo encontrar la venta recién creada después de la transacción.');
       }
       return resultadoFinal;
-      
+
     } catch (error) {
       // Si algo falla, revertir todos los cambios
       await queryRunner.rollbackTransaction();
@@ -145,21 +140,21 @@ export class SaleService {
   }
 
   findAll() {
-    return this.saleRepository.find({ 
+    return this.saleRepository.find({
       relations: ['cliente', 'empleado', 'metodo_pago', 'detalles'],
       order: { fecha_hora: 'DESC' }
     });
   }
 
   async findOne(id: number) {
-      const sale = await this.saleRepository.findOne({
-          where: { idsale: id },
-          relations: ['cliente', 'empleado', 'metodo_pago', 'detalles']
-      });
-      if (!sale) {
-          throw new NotFoundException(`Venta con ID #${id} no encontrada.`);
-      }
-      return sale;
+    const sale = await this.saleRepository.findOne({
+      where: { idsale: id },
+      relations: ['cliente', 'empleado', 'metodo_pago', 'detalles']
+    });
+    if (!sale) {
+      throw new NotFoundException(`Venta con ID #${id} no encontrada.`);
+    }
+    return sale;
   }
 
   /**
@@ -176,9 +171,9 @@ export class SaleService {
     await queryRunner.startTransaction();
 
     try {
-      const saleToUpdate = await queryRunner.manager.findOne(Sale, { 
+      const saleToUpdate = await queryRunner.manager.findOne(Sale, {
         where: { idsale: id },
-        relations: ['cliente', 'empleado', 'metodo_pago'] 
+        relations: ['cliente', 'empleado', 'metodo_pago']
       });
 
       if (!saleToUpdate) {
@@ -216,11 +211,11 @@ export class SaleService {
 
       const updatedSale = await queryRunner.manager.save(saleToUpdate);
       await queryRunner.commitTransaction();
-      
+
       // Devolver la venta actualizada con sus relaciones
       const resultadoFinal = await this.saleRepository.findOne({
         where: { idsale: updatedSale.idsale },
-        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago']
       });
       if (!resultadoFinal) {
         throw new InternalServerErrorException('No se pudo encontrar la venta recién actualizada después de la transacción.');
@@ -248,10 +243,10 @@ export class SaleService {
     await queryRunner.startTransaction();
 
     try {
-      const saleToRemove = await queryRunner.manager.findOne(Sale, { 
+      const saleToRemove = await queryRunner.manager.findOne(Sale, {
         where: { idsale: id },
         // Cargar detalles para devolverlos, aunque la BD los borrará por cascada
-        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago'] 
+        relations: ['detalles', 'cliente', 'empleado', 'metodo_pago']
       });
 
       if (!saleToRemove) {
@@ -267,9 +262,9 @@ export class SaleService {
 
       await queryRunner.manager.remove(saleToRemove); // Esto eliminará la venta y sus detalles por cascada.
       await queryRunner.commitTransaction();
-      
+
       // Devolvemos la entidad eliminada (ya no existe en BD, pero tenemos su estado previo)
-      return saleToRemove; 
+      return saleToRemove;
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -307,23 +302,24 @@ export class SaleService {
     });
 
     // Encabezado de la ferretería
-    doc.fontSize(18).font('Helvetica-Bold').text('Ferretería Industrial La Tuerca Fina', { align: 'center' });
-    doc.fontSize(10).font('Helvetica').text('Cra. 45 #32-67, Barrio Centro, Bogotá, Colombia', { align: 'center' });
-    doc.text('Tel: +57 1 234 5678 - contacto@latuercafina.com', { align: 'center' });
+    doc.fontSize(18).font('Helvetica-Bold').text('Ferretería Ferrelectricos', { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text('Cra. 9 # 3-06, Barrio Pablo sexto Alto', { align: 'center' });
+    doc.text('Mocoa, Putumayo', { align: 'center' });
+    doc.text('Tel: +57 3174292536', { align: 'center' });
     doc.moveDown();
 
     // Info de la factura
-    doc.fontSize(12).font('Helvetica-Bold').text(`Factura N° ${sale.idsale}`);
+    doc.fontSize(12).font('Helvetica-Bold').text(`Factura: FAC-FE#${sale.idsale}`);
     doc.font('Helvetica').text(`Fecha: ${sale.fecha_hora.toLocaleString('es-CO')}`);
     doc.text(`Método de Pago: ${sale.metodo_pago.description}`);
     doc.moveDown();
 
     // Cliente
-    doc.font('Helvetica-Bold').text('Cliente:');
-    doc.font('Helvetica').text(`${sale.cliente.nombre} ${sale.cliente.apellido}`);
-    doc.text(`Identificación: ${sale.cliente.numero_identificacion}`);
-    doc.text(`Teléfono: ${sale.cliente.movil || 'N/A'}`);
-    doc.text(`Correo: ${sale.cliente.email || 'N/A'}`);
+    doc.font('Helvetica-Bold').text('Cliente:', { align: 'right' });
+    doc.font('Helvetica').text(`${sale.cliente.nombre} ${sale.cliente.apellido}`, { align: 'right' });
+    doc.text(`Identificación: ${sale.cliente.numero_identificacion}`, { align: 'right' });
+    doc.text(`Teléfono: ${sale.cliente.movil || 'N/A'}`, { align: 'right' });
+    doc.text(`Correo: ${sale.cliente.email || 'N/A'}`, { align: 'right' });
     doc.moveDown();
 
     // Tabla productos
@@ -354,11 +350,11 @@ export class SaleService {
       const producto = detalle.producto;
       const precioUnitario = parseFloat(detalle.precio_unitario as any);
       const iva = parseFloat(detalle.iva as any);
-      const subtotal = detalle.cantidad * precioUnitario;
-      const ivaLinea = subtotal * iva;
+      const subtotalLinea = detalle.cantidad * precioUnitario;
+      const ivaLinea = subtotalLinea * iva;
 
+      subtotalFinal += subtotalLinea;
       totalIVA += ivaLinea;
-      subtotalFinal += subtotal;
 
       const row = [
         producto.codigo,
@@ -366,52 +362,66 @@ export class SaleService {
         detalle.cantidad,
         this.formatCOP(precioUnitario),
         `${(iva * 100).toFixed(0)}%`,
-        this.formatCOP(subtotal + ivaLinea),
+        this.formatCOP(subtotalLinea),
       ];
 
       x = startX;
+
+      // Medimos la altura necesaria para esta fila basado en el campo más largo (nombre del producto)
+      const textHeight = doc.heightOfString(producto.nombre, {
+        width: columnWidths[1],
+        align: 'left',
+      });
+      const rowHeight = Math.max(20, textHeight + 10); // altura mínima 20, si es más, se ajusta
+
+      // Dibujar fondo si es una fila par
       if (index % 2 === 1) {
-        doc.rect(startX, y, 530, 20).fill('#E3F2FD').stroke();
+        doc.rect(startX, y, 530, rowHeight).fill('#E3F2FD').stroke();
       }
 
+      doc.fillColor('black');
       row.forEach((cell, i) => {
-        doc.fillColor('black').text(String(cell), x + 2, y + 5, {
+        doc.text(String(cell), x + 2, y + 5, {
           width: columnWidths[i],
           align: 'left',
         });
         x += columnWidths[i];
       });
 
-      y += 20;
+      y += rowHeight;
+
       if (y > doc.page.height - 100) {
         doc.addPage();
         y = doc.y;
       }
     });
 
+
     doc.moveDown();
 
     // Totales
-    doc.font('Helvetica-Bold').text(`Subtotal: ${this.formatCOP(subtotalFinal)}`);
-    doc.text(`IVA Total: ${this.formatCOP(totalIVA)}`);
-    doc.text(`TOTAL A PAGAR: ${this.formatCOP(sale.total)}`);
-    doc.moveDown();
+    // Dejar espacio antes de los totales
+    y += 10;
 
-    // Total en letras
-    doc.font('Helvetica-Bold').text('TOTAL EN LETRAS:');
-    doc.font('Helvetica').text(
-      NumeroALetras.numeroALetras (sale.total, {
-    plural: 'pesos',
-    singular: 'peso',
-    centPlural: 'centavos',
-    centSingular: 'centavo',
-  })
-);
+    // Si los totales se van a salir de la página, agregar una nueva página
+    if (y > doc.page.height - 100) {
+      doc.addPage();
+      y = doc.y;
+    }
 
-    // Pie de página
-    doc.moveDown(2);
-    doc.fontSize(8).fillColor('gray').text('Gracias por su compra.', { align: 'center' });
-    doc.text(`Factura generada el ${new Date().toLocaleString('es-CO')}`, { align: 'center' });
+    // Totales (posición dinámica)
+    doc.font('Helvetica-Bold').fontSize(11);
+    doc.text(`Subtotal: ${this.formatCOP(subtotalFinal)}`, startX, y, { align: 'right', width: 530 });
+    y += 15;
+    doc.text(`IVA Total: ${this.formatCOP(totalIVA)}`, startX, y, { align: 'right', width: 530 });
+    y += 15;
+    doc.text(`TOTAL A PAGAR: ${this.formatCOP(subtotalFinal + totalIVA)}`, startX, y, { align: 'right', width: 530 });
+    y += 30;
+
+    doc.fontSize(8).fillColor('gray').text('Gracias por su compra.', startX, y, { align: 'right', width: 530 });
+    y += 12;
+    doc.text(`Factura generada el ${new Date().toLocaleString('es-CO')}`, startX, y, { align: 'right', width: 530 });
+
 
     doc.end();
     return pdfDone;
