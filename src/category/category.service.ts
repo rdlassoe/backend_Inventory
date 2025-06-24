@@ -10,7 +10,7 @@ export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
-  ) {}
+  ) { }
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     const newCategory = this.categoryRepository.create(createCategoryDto);
@@ -42,7 +42,7 @@ export class CategoryService {
     try {
       return await this.categoryRepository.save(category);
     } catch (error) {
-       if (error.code === 'ER_DUP_ENTRY') {
+      if (error.code === 'ER_DUP_ENTRY') {
         throw new ConflictException('Ya existe una categoría con esa descripción.');
       }
       throw new InternalServerErrorException('Error al actualizar la categoría.');
